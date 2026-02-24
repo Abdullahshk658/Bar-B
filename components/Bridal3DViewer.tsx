@@ -18,135 +18,6 @@ const getAssetType = (url: string): SplatAssetType => {
   return PLY_URL_PATTERN.test(url) ? "ply" : "splat";
 };
 
-class BridalMaterialPass extends SPLAT.ShaderPass {
-  private program: SPLAT.ShaderProgram | null = null;
-  private gl: WebGL2RenderingContext | null = null;
-  private alphaTestUniform: WebGLUniformLocation | null = null;
-  private shinePhaseUniform: WebGLUniformLocation | null = null;
-  private shineStrengthUniform: WebGLUniformLocation | null = null;
-  private shinePowerUniform: WebGLUniformLocation | null = null;
-
-  constructor(
-    private readonly alphaTest: number,
-    private readonly shineStrength: number,
-    private readonly shinePower: number
-  ) {
-    super();
-  }
-
-  initialize(program: SPLAT.ShaderProgram) {
-    this.program = program;
-    this.gl = program.renderer.gl;
-    this.alphaTestUniform = this.gl.getUniformLocation(program.program, "uAlphaTest");
-    this.shinePhaseUniform = this.gl.getUniformLocation(program.program, "uShinePhase");
-    this.shineStrengthUniform = this.gl.getUniformLocation(program.program, "uShineStrength");
-    this.shinePowerUniform = this.gl.getUniformLocation(program.program, "uShinePower");
-  }
-
-  render() {
-    if (!this.gl || !this.program) {
-      return;
-    }
-
-    const gl = this.gl;
-    gl.useProgram(this.program.program);
-
-    // Keep depth writes disabled for translucent splats, then use alpha test in shader.
-    gl.depthMask(false);
-    gl.enable(gl.BLEND);
-    gl.blendFuncSeparate(gl.ONE_MINUS_DST_ALPHA, gl.ONE, gl.ONE_MINUS_DST_ALPHA, gl.ONE);
-
-    const forward = this.program.camera?.forward;
-    const cameraPhase = forward ? forward.x * 0.33 + forward.y * 0.62 + forward.z : 0;
-    const shinePhase = performance.now() * 0.001 + cameraPhase * 3;
-
-    if (this.alphaTestUniform) {
-      gl.uniform1f(this.alphaTestUniform, this.alphaTest);
-    }
-    if (this.shinePhaseUniform) {
-      gl.uniform1f(this.shinePhaseUniform, shinePhase);
-    }
-    if (this.shineStrengthUniform) {
-      gl.uniform1f(this.shineStrengthUniform, this.shineStrength);
-    }
-    if (this.shinePowerUniform) {
-      gl.uniform1f(this.shinePowerUniform, this.shinePower);
-    }
-  }
-
-  dispose() {
-    if (this.gl) {
-      this.gl.depthMask(true);
-    }
-    this.program = null;
-    this.gl = null;
-  }
-}
-
-class BridalShineRenderProgram extends SPLAT.RenderProgram {
-  protected _getFragmentSource() {
-    return `#version 300 es
-precision highp float;
-
-uniform float outlineThickness;
-uniform vec4 outlineColor;
-uniform float uAlphaTest;
-uniform float uShinePhase;
-uniform float uShineStrength;
-uniform float uShinePower;
-
-in vec4 vColor;
-in vec2 vPosition;
-in float vSize;
-in float vSelected;
-
-out vec4 fragColor;
-
-float sparkleNoise(vec2 uv, float phase) {
-    return fract(sin(dot(uv + vec2(phase, phase * 0.37), vec2(12.9898, 78.233))) * 43758.5453123);
-}
-
-vec4 shadeSplat(vec4 color, float gaussianWeight) {
-    float alpha = gaussianWeight * clamp(color.a, 0.0, 1.0);
-
-    // Critical for translucent tulle/veil rendering:
-    // alpha test trims tiny low-energy splats while depth writes remain disabled.
-    if (alpha < uAlphaTest) {
-        discard;
-    }
-
-    vec3 rgb = gaussianWeight * color.rgb;
-    vec2 sparkleUv = gl_FragCoord.xy * 0.015 + vPosition * 2.25;
-    float sparkleMask = pow(sparkleNoise(sparkleUv, uShinePhase), uShinePower);
-    float edgeBoost = smoothstep(0.2, 1.0, 1.0 - abs(vPosition.x * vPosition.y));
-    vec3 shine = vec3(1.0, 0.97, 0.92) * sparkleMask * edgeBoost * uShineStrength * alpha;
-
-    return vec4(rgb + shine, alpha);
-}
-
-void main () {
-    float A = -dot(vPosition, vPosition);
-    if (A < -4.0) discard;
-
-    float gaussianWeight = exp(A);
-
-    if (vSelected < 0.5) {
-        fragColor = shadeSplat(vColor, gaussianWeight);
-        return;
-    }
-
-    float outlineThreshold = -4.0 + (outlineThickness / max(vSize, 0.0001));
-    if (A < outlineThreshold) {
-        fragColor = outlineColor;
-        return;
-    }
-
-    fragColor = shadeSplat(vColor, gaussianWeight);
-}
-`;
-  }
-}
-
 const clampProgress = (value: number) => Math.round(Math.max(0, Math.min(1, value)) * 100);
 
 export const Bridal3DViewer = ({ modelUrl }: { modelUrl: string }) => {
@@ -192,15 +63,8 @@ export const Bridal3DViewer = ({ modelUrl }: { modelUrl: string }) => {
     camera.data.far = 500;
     camera.position = new SPLAT.Vector3(0, 1.15, 4.3);
 
-    const materialPass = new BridalMaterialPass(0.02, 0.28, 10);
-    const renderPasses = [new SPLAT.FadeInPass(1.4), materialPass];
-    const renderer = new SPLAT.WebGLRenderer(canvas, renderPasses);
+    const renderer = new SPLAT.WebGLRenderer(canvas, [new SPLAT.FadeInPass(0.8)]);
     renderer.backgroundColor = new SPLAT.Color32(0, 0, 0, 0);
-
-    const customProgram = new BridalShineRenderProgram(renderer, renderPasses);
-    renderer.removeProgram(renderer.renderProgram);
-    renderer.renderProgram.dispose();
-    renderer.addProgram(customProgram);
 
     const controls = new SPLAT.OrbitControls(camera, renderer.canvas, -0.3, -0.22, 4.5);
     controls.minZoom = 1.1;
@@ -227,12 +91,17 @@ export const Bridal3DViewer = ({ modelUrl }: { modelUrl: string }) => {
     setIsRendered(false);
 
     const startRenderLoop = () => {
+      let lastFrameTime = 0;
       const tick = () => {
         if (disposed) {
           return;
         }
-        controls.update();
-        renderer.render(scene, camera);
+        const now = performance.now();
+        if (now - lastFrameTime >= 1000 / 30) {
+          controls.update();
+          renderer.render(scene, camera);
+          lastFrameTime = now;
+        }
 
         if (!renderedOnceRef.current) {
           renderedOnceRef.current = true;
