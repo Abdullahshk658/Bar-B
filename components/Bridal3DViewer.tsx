@@ -125,8 +125,8 @@ export const Bridal3DViewer = ({ modelUrl }: { modelUrl: string }) => {
 
         const splat =
           assetType === "ply"
-            ? await SPLAT.PLYLoader.LoadAsync(modelUrl, scene, onProgress, "", true)
-            : await SPLAT.Loader.LoadAsync(modelUrl, scene, onProgress, true);
+            ? await SPLAT.PLYLoader.LoadAsync(modelUrl, scene, onProgress)
+            : await SPLAT.Loader.LoadAsync(modelUrl, scene, onProgress);
 
         if (disposed) {
           return;
@@ -136,12 +136,29 @@ export const Bridal3DViewer = ({ modelUrl }: { modelUrl: string }) => {
         const bounds = splat.bounds;
         const center = bounds.center();
         const size = bounds.size();
-        const radius = Math.max(size.x, size.y, size.z, 1);
+        const isFiniteBounds = [center.x, center.y, center.z, size.x, size.y, size.z].every((value) =>
+          Number.isFinite(value)
+        );
 
-        controls.setCameraTarget(center);
-        controls.minZoom = Math.max(0.9, radius * 0.25);
-        controls.maxZoom = Math.max(12, radius * 8);
-        camera.position = new SPLAT.Vector3(center.x, center.y + radius * 0.24, center.z + radius * 1.7);
+        if (isFiniteBounds) {
+          const radius = Math.min(50, Math.max(size.x, size.y, size.z, 1));
+          controls.setCameraTarget(center);
+          controls.minZoom = Math.max(0.9, radius * 0.25);
+          controls.maxZoom = Math.max(12, radius * 8);
+          camera.position = new SPLAT.Vector3(center.x, center.y + radius * 0.24, center.z + radius * 1.7);
+        } else {
+          const fallbackTarget = new SPLAT.Vector3(0, 0, 0);
+          controls.setCameraTarget(fallbackTarget);
+          controls.minZoom = 0.9;
+          controls.maxZoom = 12;
+          camera.position = new SPLAT.Vector3(0, 0.3, 3.2);
+        }
+
+        // Force an initial draw so opacity can transition even on slower devices.
+        controls.update();
+        renderer.render(scene, camera);
+        setIsRendered(true);
+        setIsLoading(false);
 
         startRenderLoop();
       } catch (error) {
