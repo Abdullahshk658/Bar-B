@@ -154,7 +154,6 @@ export const Bridal3DViewer = ({ modelUrl }: { modelUrl: string }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const renderedOnceRef = useRef(false);
 
-  const [hasInteracted, setHasInteracted] = useState(false);
   const [isRendered, setIsRendered] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [loadingPercent, setLoadingPercent] = useState(0);
@@ -164,7 +163,6 @@ export const Bridal3DViewer = ({ modelUrl }: { modelUrl: string }) => {
   const isSketchfabEmbed = useMemo(() => SKETCHFAB_EMBED_PATTERN.test(modelUrl), [modelUrl]);
 
   useEffect(() => {
-    setHasInteracted(false);
     setIsRendered(false);
     setIsLoading(false);
     setLoadingPercent(0);
@@ -175,7 +173,7 @@ export const Bridal3DViewer = ({ modelUrl }: { modelUrl: string }) => {
     const container = containerRef.current;
     const canvas = canvasRef.current;
 
-    if (!hasInteracted || !container || !canvas) {
+    if (!container || !canvas) {
       return;
     }
 
@@ -297,10 +295,10 @@ export const Bridal3DViewer = ({ modelUrl }: { modelUrl: string }) => {
       controls.dispose();
       renderer.dispose();
     };
-  }, [assetType, hasInteracted, modelUrl]);
+  }, [assetType, modelUrl]);
 
   return (
-    <div className="relative h-[420px] w-full overflow-hidden rounded-2xl border border-champagne/55 bg-transparent shadow-luxe sm:h-[560px]">
+    <div ref={containerRef} className="relative h-[420px] w-full overflow-hidden rounded-2xl border border-champagne/55 bg-transparent shadow-luxe sm:h-[560px]">
       {isSketchfabEmbed ? (
         <>
           <iframe
@@ -327,20 +325,7 @@ export const Bridal3DViewer = ({ modelUrl }: { modelUrl: string }) => {
         <canvas ref={canvasRef} className="h-full w-full bg-transparent" />
       </motion.div>
 
-      {!hasInteracted ? (
-        <button
-          type="button"
-          onClick={() => setHasInteracted(true)}
-          className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-b from-[#f8f3eb]/84 via-[#f8f3eb]/78 to-[#f8f3eb]/86 text-center backdrop-blur-[1px]"
-        >
-          <span className="rounded-full border border-charcoal/30 px-5 py-2 text-xs uppercase tracking-[0.22em] text-charcoal">
-            Click to Interact
-          </span>
-          <span className="mt-4 px-6 text-sm text-charcoal/75">Start photorealistic 3D Gaussian Splat rendering</span>
-        </button>
-      ) : null}
-
-      {hasInteracted && isLoading ? (
+      {isLoading ? (
         <div className="absolute inset-x-6 bottom-6 rounded-xl border border-champagne/70 bg-[#fffaf2]/88 p-3 backdrop-blur">
           <div className="mb-2 flex items-center justify-between text-xs uppercase tracking-[0.16em] text-charcoal/75">
             <span>Loading Splat</span>

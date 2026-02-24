@@ -6,6 +6,11 @@ const mockModels = [
   "https://huggingface.co/datasets/dylanebert/3dgs/resolve/main/bicycle/bicycle-7k.splat"
 ];
 
+const toProxyModelUrl = (sourceUrl: string, videoName: string) => {
+  const fileName = sourceUrl.split("/").pop() ?? "generated.splat";
+  return `/api/splat-proxy/${fileName}?url=${encodeURIComponent(sourceUrl)}&source=${encodeURIComponent(videoName)}`;
+};
+
 export async function POST(request: Request) {
   const body = (await request.json()) as { videoName?: string };
 
@@ -19,6 +24,6 @@ export async function POST(request: Request) {
 
   return NextResponse.json({
     status: "completed",
-    modelUrl: `${selected}?source=${encodeURIComponent(body.videoName)}`
+    modelUrl: toProxyModelUrl(selected, body.videoName)
   });
 }

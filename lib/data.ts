@@ -1,5 +1,10 @@
 import type { Product, Rental } from "@/lib/types";
 
+const toProxyModelUrl = (sourceUrl: string) => {
+  const fileName = sourceUrl.split("/").pop() ?? "model.splat";
+  return `/api/splat-proxy/${fileName}?url=${encodeURIComponent(sourceUrl)}`;
+};
+
 export const products: Product[] = [
   {
     id: "bridal-01",
@@ -9,7 +14,7 @@ export const products: Product[] = [
     price_rent: 820,
     stock: 3,
     is_3d_enabled: true,
-    model_url: "https://huggingface.co/datasets/dylanebert/3dgs/resolve/main/bonsai/bonsai-7k.splat",
+    model_url: toProxyModelUrl("https://huggingface.co/datasets/dylanebert/3dgs/resolve/main/bonsai/bonsai-7k.splat"),
     silhouette: "A-Line",
     fabric: "Lace",
     heroImage:
@@ -24,7 +29,7 @@ export const products: Product[] = [
     price_rent: 980,
     stock: 2,
     is_3d_enabled: true,
-    model_url: "https://huggingface.co/datasets/dylanebert/3dgs/resolve/main/garden/garden-7k.splat",
+    model_url: toProxyModelUrl("https://huggingface.co/datasets/dylanebert/3dgs/resolve/main/garden/garden-7k.splat"),
     silhouette: "Mermaid",
     fabric: "Satin",
     heroImage:
