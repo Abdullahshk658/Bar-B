@@ -1,0 +1,50 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum ProductCategory {
+  BRIDAL
+  COSMETIC
+}
+
+enum RentalStatus {
+  PENDING
+  BOOKED
+  ACTIVE
+  RETURNED
+  CANCELLED
+}
+
+model Product {
+  id            String          @id @default(cuid())
+  name          String
+  category      ProductCategory
+  price_sale    Decimal?        @db.Decimal(10, 2)
+  price_rent    Decimal?        @db.Decimal(10, 2)
+  stock         Int             @default(0)
+  is_3d_enabled Boolean         @default(false)
+  model_url     String?
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  rentals       Rental[]
+}
+
+model Rental {
+  id         String       @id @default(cuid())
+  product_id String
+  start_date DateTime
+  end_date   DateTime
+  user_id    String
+  status     RentalStatus @default(PENDING)
+  createdAt  DateTime     @default(now())
+  updatedAt  DateTime     @updatedAt
+
+  product Product @relation(fields: [product_id], references: [id], onDelete: Cascade)
+
+  @@index([product_id, start_date, end_date])
+}
